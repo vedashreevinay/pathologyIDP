@@ -1,0 +1,4 @@
+requests
+amazon-textract-caller
+amazon-textract-response-parser
+amazon-textract-prettyprinter

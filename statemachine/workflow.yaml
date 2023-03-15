@@ -1,0 +1,61 @@
+Comment: State machine to classify document and extract information.
+StartAt: Classify Document
+States:
+  Classify Document:
+    Type: Task
+    Resource: arn:aws:states:::lambda:invoke
+    Parameters:
+      Payload.$: $
+      FunctionName: "${ClassifyDocumentFuncName}"
+    Retry:
+      - ErrorEquals:
+          - Lambda.ServiceException
+          - Lambda.AWSLambdaException
+          - Lambda.SdkClientException
+          - Lambda.TooManyRequestsException
+        IntervalSeconds: 2
+        MaxAttempts: 6
+        BackoffRate: 2
+    Next: Choice
+    ResultPath: $.InputforNext
+  Choice:
+    Type: Choice
+    Choices:
+      - Variable: $.InputforNext.Payload.class
+        StringMatches: colonoscopy-train
+        Next: colonoscopy report, get more info
+    Default: Mammogram report, get more info
+  colonoscopy report, get more info:
+    Type: Task
+    Resource: arn:aws:states:::lambda:invoke
+    OutputPath: $.Payload
+    Parameters:
+      Payload.$: $
+      FunctionName: "${DetectDocumentTextFuncName}"
+    Retry:
+      - ErrorEquals:
+          - Lambda.ServiceException
+          - Lambda.AWSLambdaException
+          - Lambda.SdkClientException
+          - Lambda.TooManyRequestsException
+        IntervalSeconds: 2
+        MaxAttempts: 6
+        BackoffRate: 2
+    End: true
+  Mammogram report, get more info:
+    Type: Task
+    Resource: arn:aws:states:::lambda:invoke
+    OutputPath: $.Payload
+    Parameters:
+      Payload.$: $
+      FunctionName: "${DetectDocumentTextFuncName}"
+    Retry:
+      - ErrorEquals:
+          - Lambda.ServiceException
+          - Lambda.AWSLambdaException
+          - Lambda.SdkClientException
+          - Lambda.TooManyRequestsException
+        IntervalSeconds: 2
+        MaxAttempts: 6
+        BackoffRate: 2
+    End: true

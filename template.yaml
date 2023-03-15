@@ -1,0 +1,104 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Transform: AWS::Serverless-2016-10-31
+Description: >
+  DetectDocumentText
+
+  Sample SAM Template for DetectDocumentText
+
+# More info about Globals: https://github.com/awslabs/serverless-application-model/blob/master/docs/globals.rst
+Globals:
+  Function:
+    Timeout: 300
+    Tracing: Active
+  Api:
+    TracingEnabled: True
+
+Parameters:
+  InputBucket:
+    Type: String
+    Description: "The S3 bucket name of the input bucket where documents will be dropped"
+  ClassifierEndpointArn: 
+    Type: String
+    Description: "The ARN of the document classifier endpoint"
+
+Resources:
+  DetectDocumentTextFunction:
+    Type: AWS::Serverless::Function # More info about Function Resource: https://github.com/awslabs/serverless-application-model/blob/master/versions/2016-10-31.md#awsserverlessfunction
+    Properties:
+      CodeUri: lambda/
+      Handler: DetectDocText.lambda_handler
+      Runtime: python3.8
+      Architectures:
+        - x86_64
+      Policies: 
+        - S3ReadPolicy:
+            BucketName: !Ref InputBucket
+        - TextractPolicy : {}
+      Environment:
+        Variables: 
+          INPUTBUCKET: !Ref InputBucket
+      
+  ClassifyDocumentFunction:
+    Type: AWS::Serverless::Function # More info about Function Resource: https://github.com/awslabs/serverless-application-model/blob/master/versions/2016-10-31.md#awsserverlessfunction
+    Properties:
+      CodeUri: lambda/
+      Handler: ClassifyDocument.lambda_handler
+      Runtime: python3.8
+      Architectures:
+        - x86_64
+      Policies: 
+        - S3ReadPolicy:
+            BucketName: !Ref InputBucket
+        - TextractPolicy:
+            Resource: '*'
+        - Version: '2012-10-17' # See https://docs.aws.amazon.com/step-functions/latest/dg/cw-logs.html for more details on Step Functions logging using CloudWatch Logs
+          Statement:
+          - Effect: Allow
+            Action:
+              - "comprehend:ClassifyDocument"
+              - "comprehend:StartDocumentClassificationJob"
+              - "iam:PassRole"
+              - "textract: DetectDocumentText"
+              - "comprehend:DescribeDocumentClassificationJob"
+            Resource: 
+              - "*"
+      Environment:
+        Variables: 
+          INPUTBUCKET: !Ref InputBucket
+          CLASSIFIERENDPOINTARN: !Ref ClassifierEndpointArn
+          
+  DocumentWorkflowStateMachine:
+    Type: AWS::Serverless::StateMachine # More info about State Machine Resource: https://docs.aws.amazon.com/serverless-application-model/latest/developerguide/sam-resource-statemachine.html
+    Properties:
+      DefinitionUri: statemachine/workflow.yaml
+      DefinitionSubstitutions: 
+        ClassifyDocumentFuncName: !Ref ClassifyDocumentFunction
+        DetectDocumentTextFuncName: !Ref DetectDocumentTextFunction
+      Policies:
+        - LambdaInvokePolicy:
+            FunctionName: !Ref DetectDocumentTextFunction 
+        - LambdaInvokePolicy:
+            FunctionName: !Ref ClassifyDocumentFunction
+        - Version: '2012-10-17' # See https://docs.aws.amazon.com/step-functions/latest/dg/cw-logs.html for more details on Step Functions logging using CloudWatch Logs
+          Statement:
+          - Effect: Allow
+            Action:
+              - "logs:CreateLogDelivery"
+              - "logs:GetLogDelivery"
+              - "logs:UpdateLogDelivery"
+              - "logs:DeleteLogDelivery"
+              - "logs:ListLogDeliveries"
+              - "logs:PutLogEvents"
+              - "logs:PutResourcePolicy"
+              - "logs:DescribeResourcePolicies"
+              - "logs:DescribeLogGroups"
+            Resource: 
+              - "*" 
+
+Outputs:
+  DetectDocumentTextFunction:
+    Description: "Hello World Lambda Function ARN"
+    Value: !GetAtt DetectDocumentTextFunction.Arn
+  DetectDocumentTextFunctionIamRole:
+    Description: "Implicit IAM Role created for Hello World function"
+    Value: !GetAtt DetectDocumentTextFunctionRole.Arn
