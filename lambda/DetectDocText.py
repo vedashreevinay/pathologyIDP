@@ -17,8 +17,8 @@ def lambda_handler(event, context):
     q3 = tc.Query(text="What is Bi-rads score?", alias="bi-rads", pages=["1"])
     
     textract_json = tc.call_textract(
-        input_document="s3://datasets-veda-aiml/{}".format(
-            event["Document"]),
+        input_document="s3://{}/{}".format(
+            InputLocation, event["Document"]),
         queries_config=tc.QueriesConfig(queries=[q1, q2, q3]),
         features=[tc.Textract_Features.QUERIES],
         force_async_api=True,

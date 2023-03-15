@@ -7,6 +7,7 @@ import boto3
 comprehendClient = boto3.client('comprehend')
 s3Client = boto3.client('s3')
 InputLocation = os.getenv('INPUTBUCKET', None)
+ClassifierArn = os.getenv('CLASSIFIERENDPOINTARN', None)
 
 def lambda_handler(event, context):
     print(event)
@@ -16,7 +17,7 @@ def lambda_handler(event, context):
     file_for_analysis = s3_response_object['Body'].read()
     
     comprehend_sync_response = comprehendClient.classify_document(
-        EndpointArn='arn:aws:comprehend:us-east-1:291131278872:document-classifier-endpoint/Classifier-20230224181749',
+        EndpointArn=ClassifierArn,
         Bytes=file_for_analysis)
         
     print(comprehend_sync_response)
